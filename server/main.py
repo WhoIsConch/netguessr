@@ -6,6 +6,7 @@ from flask_cors import CORS
 from flask import request, render_template, session, redirect
 import os
 import dotenv
+import sys
 
 dotenv.load_dotenv()
 
@@ -236,5 +237,13 @@ def restart():
 
 if __name__ == '__main__':
     print("App started!")
-    waitress.serve(app, listen='*:8080')
-    # app.run()
+
+    gettrace = getattr(sys, 'gettrace', None)
+
+    if gettrace is None:
+        print('No sys.gettrace')
+        waitress.serve(app, listen="*:8080")
+    elif gettrace():
+        app.run()
+    else:
+        waitress.serve(app, listen="*:8080")
