@@ -242,8 +242,8 @@ if __name__ == '__main__':
 
     if gettrace is None:
         print('No sys.gettrace')
-        waitress.serve(app, listen="*:8080")
+        waitress.serve(app, listen="*:80")
     elif gettrace():
         app.run()
     else:
-        waitress.serve(app, listen="*:8080")
+        waitress.serve(app, listen="*:80")
