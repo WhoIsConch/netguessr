@@ -1,0 +1,81 @@
+body {
+    font-family: roboto, sans-serif;
+    background-color: #2e2e2e;
+}
+
+.heading {
+    text-align: center;
+    font-size: 1.2em;
+    font-weight: bold;
+    color: white;
+    margin-top: 20px;
+    margin-bottom: 20px;
+}
+
+.celeb {
+    text-align: center;
+    background-color: grey;
+    border-radius: 5px;
+    padding: 10px;
+    margin: 20px;
+    overflow: auto;
+}
+
+.celeb h2 {
+    text-align: center;
+    font-size: 2em;
+    font-weight: bold;
+    color: white;
+
+}
+
+.celeb img {
+    width: 25%;
+    height: 25%;
+    border-radius: 5px;
+    border: 1px solid black;
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+
+}
+
+.celeb-info {
+    width: 50%;
+    float: left;
+    text-align: center;
+}
+
+.guess-buttons {
+    border-radius: 5px;
+    border: 1px solid red;
+    /* width: 50%; */
+    /* float: right; */
+}
+
+.guess-buttons button {
+    /* width: 10%; */
+    /* float: left; */
+    text-align: center;
+}
+
+#guess {
+    border-radius: 20px;
+    border: 1px solid black;
+    font-size: 1em;
+    padding: 5px;
+    margin-bottom: 10px;
+    text-align: center;
+}
+
+#guess:focus {
+    outline: none;
+}
+
+.result {
+    text-align: center;
+    background-color: grey;
+    border-radius: 5px;
+    padding: 10px;
+    margin: 20px;
+}

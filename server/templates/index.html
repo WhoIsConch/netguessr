@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>NetGuessr</title>
+    <link rel="icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
+    <!-- Stylesheets -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles/style.css') }}">
+    <!-- Scripts -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>    <script src="{{ url_for('static', filename='script.js') }}"></script>
+
+</head>
+<body>
+    <div class="heading">
+        <h1>NetGuessr</h1>
+        <h2>Guess the net worth of celebrities</h2>
+    </div>
+    <div class="celeb">
+        <div class="celeb-info">
+            <h2>Guess the net worth of: <span id="celeb-name">{{ celeb_name }}</span></h2>
+            <img id="celeb-img" src = "{{ celeb_image_url }}" alt="Celebrity Image">    
+        </div>
+        
+        <div class="control">
+            <div class="guess-buttons">
+                <input type="number" id="guess" name="guess" placeholder="Enter your guess">
+                <br/>
+                <button id="submit">Submit</button>
+                <button id="skip">Skip</button>
+            </div>
+            <br/>
+            <h3 id="score">Score: {{ score }}</h3>
+            <button id="restart">Reset Score & Start Over</button>  
+        </div>
+
+    </div>
+    <div class="result">
+        <h2 id="result-text">No Result</h2>
+        <h2 id="result-net-worth">No Result</h2>
+        <button id="next">Next</button>
+    </div>
+</body>
+</html>
