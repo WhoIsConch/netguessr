@@ -5,7 +5,6 @@ async function getRandom() {
 
     if (response.ok) {
         let json = await response.json();
-        console.log(json);
         currentRandom = json;
 
         return json;
@@ -19,7 +18,8 @@ async function submit() {
     let response = await fetch("/game/submit", {
         method: "POST",
         body: JSON.stringify({
-            guess: document.getElementById("guess").value
+            guess: $("#guess").val(),
+            guess_amt: $("#amount").val()
         }),
         headers: {
             "Content-Type": "application/json"
@@ -34,6 +34,7 @@ async function submit() {
 async function reset() {
     $("#submit").prop("disabled", false);
     $("#guess").prop("disabled", false);
+    $("#skip").prop("disabled", false);
     $(".result").hide();
     $("#guess").val("");
 
@@ -41,12 +42,14 @@ async function reset() {
 
     $("#celeb-name").text(celeb.name);
     $("#celeb-img").attr("src", celeb.image);
+    $("#result-text").text("");
 
 }
 
 $(function(){
     $(".result").hide();
     $("#guess").val("");
+    $("input").val("M");
 
     $("#guess").keyup(function(event){
         if(event.keyCode == 13 && $("#submit").prop("disabled") == false){
@@ -79,6 +82,9 @@ $(function(){
                 break;
             case "closeenough":
                 $(".result").css("background-color", "#31478f");
+                break;
+            case "middle":
+                $(".result").css("background-color", "#b09a2e");
                 break;
             case "off":
                 $(".result").css("background-color", "#b09a2e");

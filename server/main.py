@@ -3,7 +3,7 @@ import random
 import json
 import waitress
 from flask_cors import CORS
-from flask import request, render_template, session
+from flask import request, render_template, session, redirect
 import os
 import dotenv
 
@@ -12,6 +12,12 @@ dotenv.load_dotenv()
 app = flask.Flask(__name__)
 cors = CORS(app)
 app.secret_key = os.getenv("SECRET_KEY")
+guess_amount_key = {
+    "thousand": 1000,
+    "million": 1000000,
+    "billion": 1000000000,
+    "trillion": 1000000000000,
+}
 
 class CelebManager:
     def __init__(self):
@@ -89,7 +95,7 @@ celeb_manager = CelebManager()
 
 @app.route('/')
 def index():
-    return "Hello, World!", 200
+    return redirect("/game/start")
 
 @app.route('/celeb/random')
 def random_celeb():
@@ -100,6 +106,8 @@ def random_celeb():
     rceleb = celeb_manager.get_random_celeb()
     data_format = request.args.get("format")
     
+    session["celeb"] = rceleb["name"]
+
     if data_format == "json":
         return rceleb
     
@@ -144,7 +152,15 @@ def game_submit():
     """
     This method is called when a user submits a guess to the game.
     """
-    guess = int((request.get_json()).get("guess"))
+    req_data = request.get_json()
+    try:
+        guess = int(req_data.get("guess"))
+    except ValueError:
+        guess = float(req_data.get("guess"))
+    guess_amt = req_data.get("guess_amt")
+
+    guess *= guess_amount_key[guess_amt]
+
     celeb = celeb_manager.get_celeb(session.get("celeb"))
 
     if not celeb:
@@ -155,8 +171,11 @@ def game_submit():
     
     networth = int(celeb["networth"].replace("$", "").replace(",", ""))
 
-    close_high = networth * 1.1
-    close_low = networth * 0.9
+    close_high = networth * 1.15
+    close_low = networth * 0.85
+
+    mid_high = networth * 1.3
+    mid_low = networth * 0.7
 
     off_high = networth * 1.5
     off_low = networth * 0.5
@@ -178,6 +197,13 @@ def game_submit():
             "statcode": "closeenough"
             }
         points = 3
+
+    elif guess >= mid_low and guess <= mid_high:
+        response = {
+            "message": "You were in the middle!",
+            "statcode": "middle"
+            }
+        points = 2
 
     elif guess >= off_low and guess <= off_high:
         response = {
@@ -210,5 +236,5 @@ def restart():
 
 if __name__ == '__main__':
     print("App started!")
-    # waitress.serve(app, listen='*:8080')
-    app.run()
+    waitress.serve(app, listen='*:8080')
+    # app.run()

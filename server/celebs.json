@@ -6049,6 +6049,11 @@
             "image": "celeb-Mohamed Salah.jpg",
             "networth": "$35,100,000",
             "name": "Mohamed Salah"
+        },
+        {
+            "image": "celeb-Tony Hawk",
+            "networth": "$140,000,000",
+            "name": "Tony Hawk"
         }
     ]
 }

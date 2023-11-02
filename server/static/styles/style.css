@@ -46,15 +46,29 @@ body {
     text-align: center;
 }
 
+.control {
+    width: 50%;
+    text-align: center;
+    /* float: right; */
+    display: inline-block;
+    /* Make the div fit its contents */
+    /* Make the div fit its contents */
+    /* margin: 0 auto; */
+    /* Make the div fit its contents */
+
+
+}
+
 .guess-buttons {
-    border-radius: 5px;
-    border: 1px solid red;
+    /* border-radius: 5px; */
+    /* border: 1px solid red; */
+    display: inline-block;
     /* width: 50%; */
     /* float: right; */
 }
 
 .guess-buttons button {
-    /* width: 10%; */
+    width: 40%;
     /* float: left; */
     text-align: center;
 }
