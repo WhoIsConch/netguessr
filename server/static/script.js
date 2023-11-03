@@ -51,6 +51,19 @@ $(function(){
     $("#guess").val("");
     $("input").val("M");
 
+    $("#celeb-img").on("error", () => {
+        fetch("/manage/imageError", {
+            method: "POST",
+            body: JSON.stringify({
+                image_url: $("#celeb-img").attr("src"),
+                celeb: $("#celeb-name").text()
+            }),
+            headers: {
+                "Content-Type": "application/json"
+            }
+        });
+    });
+
     $("#guess").keyup(function(event){
         if(event.keyCode == 13 && $("#submit").prop("disabled") == false){
             $("#submit").click();
@@ -114,7 +127,7 @@ $(function(){
         $('html, body') .animate ({
             scrollTop: $ (".result") .offset().top + $(".result")[0].scrollHeight
             }, 700);
-        });
+    });
 
 
 });

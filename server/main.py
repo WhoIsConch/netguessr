@@ -94,11 +94,11 @@ class CelebManager:
 
 celeb_manager = CelebManager()
 
-@app.route('/')
+@app.route('/', methods=["GET"])
 def index():
     return redirect("/game/start")
 
-@app.route('/celeb/random')
+@app.route('/celeb/random', methods=["GET"])
 def random_celeb():
     """
     Return a random celeb. 
@@ -118,7 +118,7 @@ def random_celeb():
     <p>{rceleb["networth"]}</p>
 </div>"""
 
-@app.route('/celeb/<name>')
+@app.route('/celeb/<name>', methods=["GET"])
 def celeb(name):
     """
     Return data for a certain celeb.
@@ -131,7 +131,7 @@ def celeb(name):
     
     return "No such celeb", 404
 
-@app.route('/game/start')
+@app.route('/game/start', methods=["GET"])
 def game_start():
     """
     Start a new game of NetGuessr.
@@ -148,7 +148,7 @@ def game_start():
 
     return render_template("index.html", celeb_name=celeb["name"], celeb_image_url=celeb["image"], score=session["score"])
 
-@app.route('/game/submit', methods=['POST'])
+@app.route('/game/submit', methods=["POST"])
 def game_submit():
     """
     This method is called when a user submits a guess to the game.
@@ -226,7 +226,7 @@ def game_submit():
     response["score"] = session["score"]
     return response, 200
 
-@app.route('/game/restart')
+@app.route('/game/restart', methods=["GET"])
 def restart():
     """
     Restart the game.
@@ -234,6 +234,26 @@ def restart():
     session["celeb"] = None
     session["score"] = 0
     return "OK", 200
+
+@app.route('/manage/imageError', methods=["POST"])
+def image_error():
+    data = request.get_json()
+
+    image_url = data.get("image_url")
+    celeb_name = data.get("celeb")
+
+    with open("diagnostic.json", "r") as f:
+        diagnostic_data = json.load(f)
+    
+    diagnostic_data["image_errors"].append([
+        image_url,
+        celeb_name
+    ])
+
+    with open("diagnostic.json", "w") as f:
+        json.dump(diagnostic_data, f, indent=4)
+    
+    return "Error recorded", 200
 
 if __name__ == '__main__':
     print("App started!")
