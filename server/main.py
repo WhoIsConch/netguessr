@@ -201,7 +201,7 @@ def game_submit():
 
     elif guess >= mid_low and guess <= mid_high:
         response = {
-            "message": "You were in the middle!",
+            "message": "You were fairly close!",
             "statcode": "middle"
             }
         points = 2
