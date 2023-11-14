@@ -48,6 +48,7 @@ async function reset() {
 
 $(function(){
     $(".result").hide();
+    $("#leaveParty").hide();
     $("#guess").val("");
     $("input").val("M");
 
@@ -129,5 +130,63 @@ $(function(){
             }, 700);
     });
 
+    $("#joinParty").click(async function(){
+        let code = prompt("Input a room code:");
+
+        if (code === null) {
+            return;
+        }
+
+        res = await fetch(`/game/party/join?code=${code}`);
+        resp = await res.json();
+
+        if (res.status === 401) {
+            let passcode = prompt("Input the room's passcode:");
+
+            res = await fetch(`/game/party/join?code=${code}&passcode=${passcode}`);
+            resp = await res.json();
+        }
+
+        if (res.status !== 200) {
+            alert(`Something went wrong when joining the party. Error: ${res.status}`);
+            return;
+        } else {
+            $("#joinParty").hide();
+            $("#leaveParty").show();
+        }
+
+    });
+
+    $("#leaveParty").click(async function(){
+        fetch("/game/party/leave");
+
+        $("#leaveParty").hide();
+        $("#joinParty").show();
+    });
+
+    $("#createParty").click(async function(){
+        let passcode = prompt("Enter passcode, if any.");
+        let payload = {};
+
+        if (passcode !== "" && passcode !== null) {
+            payload = {"passcode": passcode};
+        }
+
+        let resp = await fetch("/game/party/create", {
+            method: "POST",
+            body: JSON.stringify(payload),
+            headers: {
+                "Content-Type": "application/json"
+            }
+        });
+        let data = await resp.json();
+
+        if (data.room_code) {
+            $("#joinParty").hide();
+            $("#leaveParty").show();
+        }
+
+        console.log(data);
+    });
 
 });

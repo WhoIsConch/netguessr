@@ -125,10 +125,6 @@ def remove_from_party(party_code: str, user: str):
 def index():
     return redirect("/game/start")
 
-@app.route('/test', methods=["GET"])
-def test():
-    return 200
-
 @app.route('/celeb/random', methods=["GET"])
 def random_celeb():
     """
@@ -348,6 +344,15 @@ def game_party_join():
     party_sessions[code] = party_info
 
     return {"message": "Successfully joined party"}, 200
+
+@app.route('/game/party/leave', methods=["GET"])
+def party_leave():
+    code = session.get("party_code", None)
+    user = session.get("user_key", None)
+
+    remove_from_party(code, user)
+
+    return {"message": "Successfully removed from party"}, 200
 
 if __name__ == '__main__':
     print("App started!")
