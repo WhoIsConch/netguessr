@@ -7,6 +7,8 @@ from flask import request, render_template, session, redirect
 import os
 import dotenv
 import sys
+import uuid
+import string
 
 dotenv.load_dotenv()
 
@@ -19,6 +21,8 @@ guess_amount_key = {
     "billion": 1000000000,
     "trillion": 1000000000000,
 }
+
+party_sessions = {}
 
 class CelebManager:
     def __init__(self):
@@ -94,9 +98,36 @@ class CelebManager:
 
 celeb_manager = CelebManager()
 
+def generate_room_code():
+    # Generate a random room code that is five characters long and only 
+    # includes alphabetical characters, from A-Z uppercase or lowercase.
+    return "".join([string.ascii_letters[random.randint(0, 51)] for _ in range(5)])
+
+def remove_from_party(party_code: str, user: str):
+    # Check if the provided code is a valid party and if the user specified
+    # is a member of the party. If so, remove the members from the party. We
+    # added the second condition to not raise an error if the user does not 
+    # exist in the party.
+    if (party := party_sessions.get(party_code)) and (user in party["members"]):
+        party["members"].remove(user)
+        party_sessions[party_code] = party
+
+    # Check if the party has any remaining members. If not, remove the party
+    # from the dict of party sessions. 
+    # First, we check if the party exists. If it doesn't, we return the default
+    # value {} to not raise an error when attempting to use the .get() method.
+    # We then check if the next dict contains members and if the members
+    # list has any members. 
+    if party_sessions.get(party_code, {}).get("members", False) == []:
+        party_sessions.pop(party_code, None)
+
 @app.route('/', methods=["GET"])
 def index():
     return redirect("/game/start")
+
+@app.route('/test', methods=["GET"])
+def test():
+    return 200
 
 @app.route('/celeb/random', methods=["GET"])
 def random_celeb():
@@ -229,7 +260,7 @@ def game_submit():
 @app.route('/game/restart', methods=["GET"])
 def restart():
     """
-    Restart the game.
+    Reset the game.
     """
     session["celeb"] = None
     session["score"] = 0
@@ -254,6 +285,69 @@ def image_error():
         json.dump(diagnostic_data, f, indent=4)
     
     return "Error recorded", 200
+
+@app.route('/game/party/create', methods=["POST"])
+def game_party():
+    """
+    Start a party session that other players can join.
+    """
+    data = request.get_json()
+
+    passcode = data.get("passcode", None)
+    party_code = generate_room_code()
+    user_key = session.get("user_key", str(uuid.uuid4()))
+
+    # Generate a different room code until 
+    while party_sessions.get(party_code, False):
+        party_code = generate_room_code()
+
+    if old_code := session.get("party_code", False):
+        remove_from_party(old_code, user_key)
+
+    session["user_key"] = user_key
+    session["party_code"] = party_code
+
+    party_sessions[party_code] = {"members": [user_key]}
+
+    if passcode:
+        party_sessions[party_code]["passcode"] = passcode
+
+    return {"room_code": party_code, "message": "Room successfully created!"}, 200
+
+@app.route('/game/party/join', methods=["GET"])
+def game_party_join():
+    """
+    Join a party session.
+    """
+    code = request.args.get("code", None)
+    passcode = request.args.get("passcode", None)
+
+    if not code:
+        return {"message": "No party code provided"}, 400
+    
+    party_info = party_sessions.get(code, None)
+
+    if not party_info:
+        return {"message": "Party not found"}, 404
+    
+    party_passcode = party_info.get("passcode", None)
+    
+    if (party_passcode and party_passcode != passcode):
+        return {"message": "Incorrect passcode"}, 403
+
+    user_key = session.get("user_key", str(uuid.uuid4()))
+
+    if old_party := session.get("party_code", False):
+        remove_from_party(old_party, user_key)
+
+    party_info["members"].append(user_key)
+
+    session["user_key"] = user_key
+    session["party_code"] = code
+
+    party_sessions[code] = party_info
+
+    return {"message": "Successfully joined party"}, 200
 
 if __name__ == '__main__':
     print("App started!")
