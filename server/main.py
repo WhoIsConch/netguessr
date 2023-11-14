@@ -123,7 +123,10 @@ def remove_from_party(party_code: str, user: str):
     # added the second condition to not raise an error if the user does not 
     # exist in the party.
     if (party := party_sessions.get(party_code)) and (user in party["members"]):
-        party["members"].remove(user)
+        index = party["members"].index(user)
+        party["members"].pop(index)
+        party["scores"].pop(index)
+        
         party_sessions[party_code] = party
 
     # Check if the party has any remaining members. If not, remove the party
@@ -281,6 +284,12 @@ def game_submit():
     session["score"] += points
     response["score"] = session["score"]
 
+    if party := session.get("party_code", False):
+        user_index = party_sessions[party]["members"].index(session.get("user_key", None))
+
+        party_sessions[party]["scores"][user_index] += points
+    
+
     return response, 200
 
 @app.route('/game/restart', methods=["GET"])
@@ -349,7 +358,7 @@ def game_party():
     session["party_code"] = party_code
 
     # Record the new party in the party_sessions dict
-    party_sessions[party_code] = {"members": [user_key]}
+    party_sessions[party_code] = {"members": [user_key], "scores": [0]}
 
     # Add the passcode to the party_sessions dict, if 
     # applicable
@@ -387,6 +396,7 @@ def game_party_join():
         remove_from_party(old_party, user_key)
 
     party_info["members"].append(user_key)
+    party_info["scores"].append(0)
 
     session["user_key"] = user_key
     session["party_code"] = code
