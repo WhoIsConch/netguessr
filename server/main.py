@@ -22,9 +22,18 @@ guess_amount_key = {
     "trillion": 1000000000000,
 }
 
+# This dict holds information about "parties", or a group of users
+# playing the game together.
 party_sessions = {}
 
 class CelebManager:
+    """
+    Manage the available celebrities. This class opens and contains the 
+    list of celebs, while also holding the only methods the program should
+    use when attempting to get info about or perform actions on a celebrity.
+    The main reason this exists is to convert relative image URLs to absolute
+    URLs.
+    """
     def __init__(self):
         with open('celebs.json') as f:
             self.celebinfo = json.load(f)
@@ -99,11 +108,16 @@ class CelebManager:
 celeb_manager = CelebManager()
 
 def generate_room_code():
-    # Generate a random room code that is five characters long and only 
-    # includes alphabetical characters, from A-Z uppercase or lowercase.
+    """
+    Generate a random room code that is five characters long and only 
+    includes alphabetical characters, from A-Z uppercase or lowercase.
+    """
     return "".join([string.ascii_letters[random.randint(0, 51)] for _ in range(5)])
 
 def remove_from_party(party_code: str, user: str):
+    """
+    Checks if a user is in a party and removes them if so.
+    """
     # Check if the provided code is a valid party and if the user specified
     # is a member of the party. If so, remove the members from the party. We
     # added the second condition to not raise an error if the user does not 
@@ -123,6 +137,11 @@ def remove_from_party(party_code: str, user: str):
 
 @app.route('/', methods=["GET"])
 def index():
+    """
+    Navigating to the index of the site will simply redirect 
+    a user to the game. This may be changed in the future to
+    a welcome page.
+    """
     return redirect("/game/start")
 
 @app.route('/celeb/random', methods=["GET"])
@@ -181,12 +200,17 @@ def game_submit():
     This method is called when a user submits a guess to the game.
     """
     req_data = request.get_json()
+
     try:
         guess = int(req_data.get("guess"))
     except ValueError:
         guess = float(req_data.get("guess"))
+
+    # Get the symbolic amount a user guesses.
+    # This is thousand, million, billion, or trillion
     guess_amt = req_data.get("guess_amt")
 
+    # Multiply the user's guess by the symbolic guess amount
     guess *= guess_amount_key[guess_amt]
 
     celeb = celeb_manager.get_celeb(session.get("celeb"))
@@ -196,9 +220,13 @@ def game_submit():
             "message": "You are not currently in a game.",
             "statcode": "nogame"
             }, 400
-    
+
+    # Convert the net worth of the celeb to an integer
+    # and format the string into an integer-convertible format    
     networth = int(celeb["networth"].replace("$", "").replace(",", ""))
 
+    # Calculate the barriers in which the user will get points
+    # if they are in or touch.
     close_high = networth * 1.15
     close_low = networth * 0.85
 
@@ -249,14 +277,17 @@ def game_submit():
     
     response["celeb_data"] = celeb
 
+    # Add points to the customer's score and return their score
     session["score"] += points
     response["score"] = session["score"]
+
     return response, 200
 
 @app.route('/game/restart', methods=["GET"])
 def restart():
     """
-    Reset the game.
+    Reset the game. This resets the game score and
+    celebs to zero.
     """
     session["celeb"] = None
     session["score"] = 0
@@ -264,6 +295,13 @@ def restart():
 
 @app.route('/manage/imageError', methods=["POST"])
 def image_error():
+    """
+    Send diagnostic data to the server in the event
+    that an image fails to load. This will be so we
+    can replace the image if too many clients report 
+    it as unnaccessable.
+    """
+
     data = request.get_json()
 
     image_url = data.get("image_url")
@@ -289,22 +327,32 @@ def game_party():
     """
     data = request.get_json()
 
+    # Get the user-provided passcode, random party code,
+    # and user key.
     passcode = data.get("passcode", None)
     party_code = generate_room_code()
     user_key = session.get("user_key", str(uuid.uuid4()))
 
-    # Generate a different room code until 
+    # Generate a different room code until one that
+    # is not being used is generated.
     while party_sessions.get(party_code, False):
         party_code = generate_room_code()
 
+    # Remove the user from their old party if they 
+    # were in one before creating this one
     if old_code := session.get("party_code", False):
         remove_from_party(old_code, user_key)
 
+    # Record the user's key and party code in their
+    # session
     session["user_key"] = user_key
     session["party_code"] = party_code
 
+    # Record the new party in the party_sessions dict
     party_sessions[party_code] = {"members": [user_key]}
 
+    # Add the passcode to the party_sessions dict, if 
+    # applicable
     if passcode:
         party_sessions[party_code]["passcode"] = passcode
 
@@ -333,6 +381,8 @@ def game_party_join():
 
     user_key = session.get("user_key", str(uuid.uuid4()))
 
+    # Remove the user from a party if the user is found
+    # to be in another party 
     if old_party := session.get("party_code", False):
         remove_from_party(old_party, user_key)
 
@@ -347,6 +397,9 @@ def game_party_join():
 
 @app.route('/game/party/leave', methods=["GET"])
 def party_leave():
+    """
+    Leave the currently active party.
+    """
     code = session.get("party_code", None)
     user = session.get("user_key", None)
 
