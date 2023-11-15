@@ -22,9 +22,7 @@ guess_amount_key = {
     "trillion": 1000000000000,
 }
 
-# This dict holds information about "parties", or a group of users
-# playing the game together.
-party_sessions = {}
+party_sessions: dict[str, "Party"] = {}
 
 class CelebManager:
     """
@@ -105,38 +103,101 @@ class CelebManager:
 
         return celeb
 
+class Party:
+    def __init__(self, passcode: str = "", initial_user: str | None = None):
+        self._code: str = self.generate_room_code()
+        self._passcode: str = passcode
+        self._members: str = []
+        self._scores: int = []
+
+        # Generate a different room code until one that
+        # is not being used is generated
+        while party_sessions.get(self._code):
+            self._code = self.generate_room_code()
+
+        # Add the initial user to the party, if they exist
+        if initial_user:
+            self.add_user(initial_user)
+
+        # Add the party to the list of party sessions
+        party_sessions[self._code] = self
+
+    @staticmethod
+    def generate_room_code() -> str:
+        """
+        Generate a random room code that is five characters long and only 
+        includes alphabetical characters, from A-Z uppercase or lowercase.
+        """
+        return "".join([string.ascii_letters[random.randint(0, 51)] for _ in range(5)])
+
+    def _get_user_index(self, user: str) -> int | bool:
+        """
+        Get the index of the user in the parallel arrays
+        """
+        try:
+            return self._members.index(user)
+        except ValueError:
+            return False
+
+    def delete_party(self) -> None:
+        """
+        Remove the party from party_sessions.
+        """
+        party_sessions.pop(self._code, None)
+
+    def check_user(self, user: str) -> bool:
+        """
+        Check if a user is a member of the party.
+        """
+        return user in self._members
+
+    def remove_user(self, user: str) -> None:
+        """
+        Checks if a user is in a party and removes them if so.
+        """
+        # Remove the user from the list of party members and their score from the list of scores
+        if self.check_user(user):
+            index = self._get_user_index(user)
+            self._members.pop(index)
+            self._scores.pop(index)
+
+        # If there are no more members in the party, remove it from the dict
+        # of party sessions and delete it.
+        if self._members == []:
+            self.delete_party()
+
+    def add_user(self, user: str) -> None:
+        """
+        Add a user to the party 
+        """
+        self._members.append(user)
+        self._scores.append(0)
+
+    def get_user_score(self, user: str) -> int:
+        """
+        Get the current score of a user
+        """
+        index = self._get_user_index(user)
+
+        return self._scores[index]
+
+    def get_party_stats(self) -> dict:
+        return dict(zip(self._members, self._scores))
+
+    def add_points(self, user: str, points: int) -> None:
+        index = self._get_user_index(user)
+
+        self._scores[index] += points
+
+    @property
+    def code(self):
+        return self._code
+
+    @property
+    def passcode(self):
+        return self._passcode
+
 celeb_manager = CelebManager()
-
-def generate_room_code():
-    """
-    Generate a random room code that is five characters long and only 
-    includes alphabetical characters, from A-Z uppercase or lowercase.
-    """
-    return "".join([string.ascii_letters[random.randint(0, 51)] for _ in range(5)])
-
-def remove_from_party(party_code: str, user: str):
-    """
-    Checks if a user is in a party and removes them if so.
-    """
-    # Check if the provided code is a valid party and if the user specified
-    # is a member of the party. If so, remove the members from the party. We
-    # added the second condition to not raise an error if the user does not 
-    # exist in the party.
-    if (party := party_sessions.get(party_code)) and (user in party["members"]):
-        index = party["members"].index(user)
-        party["members"].pop(index)
-        party["scores"].pop(index)
-        
-        party_sessions[party_code] = party
-
-    # Check if the party has any remaining members. If not, remove the party
-    # from the dict of party sessions. 
-    # First, we check if the party exists. If it doesn't, we return the default
-    # value {} to not raise an error when attempting to use the .get() method.
-    # We then check if the next dict contains members and if the members
-    # list has any members. 
-    if party_sessions.get(party_code, {}).get("members", False) == []:
-        party_sessions.pop(party_code, None)
 
 @app.route('/', methods=["GET"])
 def index():
@@ -284,10 +345,12 @@ def game_submit():
     session["score"] += points
     response["score"] = session["score"]
 
-    if party := session.get("party_code", False):
-        user_index = party_sessions[party]["members"].index(session.get("user_key", None))
-
-        party_sessions[party]["scores"][user_index] += points
+    if (
+        (party_code := session.get("party_code", False))
+          and (party := party_sessions.get(party_code, False))
+          and (user_key := session.get("user_key", False))
+        ):
+        party.add_points(user_key, points)
     
 
     return response, 200
@@ -298,8 +361,10 @@ def restart():
     Reset the game. This resets the game score and
     celebs to zero.
     """
-    session["celeb"] = None
     session["score"] = 0
+    session.pop("user_key", None)
+    session.pop("celeb", None)
+    session.pop("party_code", None)
     return "OK", 200
 
 @app.route('/manage/imageError', methods=["POST"])
@@ -338,54 +403,44 @@ def game_party():
 
     # Get the user-provided passcode, random party code,
     # and user key.
-    passcode = data.get("passcode", None)
-    party_code = generate_room_code()
+    passcode = data.get("passcode", "")
     user_key = session.get("user_key", str(uuid.uuid4()))
 
-    # Generate a different room code until one that
-    # is not being used is generated.
-    while party_sessions.get(party_code, False):
-        party_code = generate_room_code()
+    party = Party(passcode, user_key)
 
     # Remove the user from their old party if they 
     # were in one before creating this one
-    if old_code := session.get("party_code", False):
-        remove_from_party(old_code, user_key)
+    if (old_code := session.get("party_code", False)) and (old_party := party_sessions.get(old_code)):
+        old_party.remove_user(user_key)
 
     # Record the user's key and party code in their
     # session
     session["user_key"] = user_key
-    session["party_code"] = party_code
+    session["party_code"] = party.code
 
-    # Record the new party in the party_sessions dict
-    party_sessions[party_code] = {"members": [user_key], "scores": [0]}
-
-    # Add the passcode to the party_sessions dict, if 
-    # applicable
-    if passcode:
-        party_sessions[party_code]["passcode"] = passcode
-
-    return {"room_code": party_code, "message": "Room successfully created!"}, 200
+    return {"room_code": party.code, "message": "Room successfully created!"}, 200
 
 @app.route('/game/party/join', methods=["GET"])
 def game_party_join():
     """
     Join a party session.
     """
-    code = request.args.get("code", None)
-    passcode = request.args.get("passcode", None)
+    party_code = request.args.get("code", None)
+    passcode = request.args.get("passcode", "")
 
-    if not code:
+    # Reject the user if the code is not provided
+    if not party_code:
         return {"message": "No party code provided"}, 400
     
-    party_info = party_sessions.get(code, None)
+    party = party_sessions.get(party_code, False)
 
-    if not party_info:
+    # Reject the user if the party provided does not exist
+    if not party:
         return {"message": "Party not found"}, 404
     
-    party_passcode = party_info.get("passcode", None)
-    
-    if (party_passcode and party_passcode != passcode):
+    # Reject the user from joining the party if the code 
+    # provided is incorrect
+    if (passcode != party.passcode):
         return {"message": "Incorrect passcode"}, 403
 
     user_key = session.get("user_key", str(uuid.uuid4()))
@@ -393,15 +448,12 @@ def game_party_join():
     # Remove the user from a party if the user is found
     # to be in another party 
     if old_party := session.get("party_code", False):
-        remove_from_party(old_party, user_key)
+        party_sessions[old_party].remove_user(user_key)
 
-    party_info["members"].append(user_key)
-    party_info["scores"].append(0)
+    party.add_user(user_key)
 
     session["user_key"] = user_key
-    session["party_code"] = code
-
-    party_sessions[code] = party_info
+    session["party_code"] = party.code
 
     return {"message": "Successfully joined party"}, 200
 
@@ -410,10 +462,16 @@ def party_leave():
     """
     Leave the currently active party.
     """
-    code = session.get("party_code", None)
+    party_code = session.get("party_code", None)
     user = session.get("user_key", None)
 
-    remove_from_party(code, user)
+    if party_code:
+        try:
+            party_sessions[party_code].remove_user(user)
+        except KeyError:
+            pass
+    
+    session.pop("party_code", None)
 
     return {"message": "Successfully removed from party"}, 200
 
