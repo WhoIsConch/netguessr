@@ -395,7 +395,7 @@ def image_error():
     return "Error recorded", 200
 
 @app.route('/game/party/create', methods=["POST"])
-def game_party():
+def create_party():
     """
     Start a party session that other players can join.
     """
@@ -421,7 +421,7 @@ def game_party():
     return {"room_code": party.code, "message": "Room successfully created!"}, 200
 
 @app.route('/game/party/join', methods=["GET"])
-def game_party_join():
+def join_party():
     """
     Join a party session.
     """
@@ -458,7 +458,7 @@ def game_party_join():
     return {"message": "Successfully joined party"}, 200
 
 @app.route('/game/party/leave', methods=["GET"])
-def party_leave():
+def leave_party():
     """
     Leave the currently active party.
     """
