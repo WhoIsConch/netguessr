@@ -441,7 +441,7 @@ def game_party_join():
     # Reject the user from joining the party if the code 
     # provided is incorrect
     if (passcode != party.passcode):
-        return {"message": "Incorrect passcode"}, 403
+        return {"message": "Incorrect passcode"}, 401
 
     user_key = session.get("user_key", str(uuid.uuid4()))
 
