@@ -475,6 +475,25 @@ def leave_party():
 
     return {"message": "Successfully removed from party"}, 200
 
+@app.route('/game/party/info', methods=["GET"])
+def get_party_info():
+    """
+    Get the users and scores in a user's party
+    """
+    party_code = session.get("party_code", None)
+    user = session.get("user_key", None)
+
+    if not (party_code and user):
+        return 404
+    
+    party = party_sessions.get(party_code, False)
+
+    if not party:
+        return 404
+    
+    return {"stats": party.get_party_stats()}, 200
+
+
 if __name__ == '__main__':
     print("App started!")
 
