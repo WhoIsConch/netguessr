@@ -17,7 +17,7 @@
         <h2>Guess the net worth of celebrities</h2>
         <button id="createParty">Create Party</button>
         <button id="joinParty">Join Party</button>
-        <button id="leaveParty">Leave Party</button>
+        <button id="leaveParty" style="display:none;">Leave Party</button>
     </div>
     <div class="celeb">
         <div class="celeb-info">
@@ -44,7 +44,13 @@
         </div>
 
     </div>
-    <div class="result">
+    <div class="partyInfo">
+        <p id="partyCode"></p>
+        <ul id="partyList">
+            <!-- Party members and their scores will go here. -->
+        </ul>
+    </div>
+    <div class="result" style="display:none;">
         <h2 id="result-text">No Result</h2>
         <h2 id="result-net-worth">No Result</h2>
         <button id="next">Next</button>

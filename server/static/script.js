@@ -46,11 +46,40 @@ async function reset() {
 
 }
 
-$(function(){
-    $(".result").hide();
-    $("#leaveParty").hide();
+async function getPartyInfo() {
+    let resp = await fetch("/game/party/info");
+
+    if (resp.status !== 200) {
+        return false;
+    }
+
+    let json = await resp.json();
+
+    for (let user in json.stats) {
+        $("#partyList").html("");
+        $("#partyList").append(`<li>${user} | ${json.stats[user]}</li>`);
+    }
+
+    $("#score").text(`Score: ${json.current_user}`)
+
+    $("#partyCode").text("Party Code: " + json.code)
+    return true;
+}
+
+async function siteLoad() {
     $("#guess").val("");
     $("input").val("M");
+
+    let isInParty = await getPartyInfo();
+
+    if (isInParty) {
+        $("#joinParty").hide();
+        $("#leaveParty").show();
+    }
+}
+
+$(function(){
+    siteLoad();
 
     $("#celeb-img").on("error", () => {
         fetch("/manage/imageError", {
@@ -73,6 +102,7 @@ $(function(){
 
     $("#next").click(async function(){
         // Refresh the page
+        getPartyInfo();
         await reset();
     });
 
@@ -136,32 +166,51 @@ $(function(){
         if (code === null) {
             return;
         }
+        else if (code === "") {
+            alert("Room code is required!");
+            return;
+        }
 
-        res = await fetch(`/game/party/join?code=${code}`);
+        let username = prompt("Input a username:");
+
+        if (username === null || username === "") {
+            alert("Username is required!");
+            return;
+        }
+
+        res = await fetch(`/game/party/join?code=${code}&username=${username}`);
         resp = await res.json();
 
         if (res.status === 401) {
             let passcode = prompt("Input the room's passcode:");
 
-            res = await fetch(`/game/party/join?code=${code}&passcode=${passcode}`);
+            res = await fetch(`/game/party/join?code=${code}&username=${username}&passcode=${passcode}`);
             resp = await res.json();
         }
 
-        if (res.status !== 200) {
+        if (res.status === 404) {
+            alert("Room does not exist.");
+        }
+        else if (res.status !== 200) {
             alert(`Something went wrong when joining the party. Error: ${res.status}`);
             return;
         } else {
             $("#joinParty").hide();
             $("#leaveParty").show();
+            getPartyInfo();
         }
 
     });
 
     $("#leaveParty").click(async function(){
-        fetch("/game/party/leave");
+        resp = await fetch("/game/party/leave");
 
-        $("#leaveParty").hide();
-        $("#joinParty").show();
+        if (resp.status === 200) {
+            $("#partyList").html("");
+            $("#leaveParty").hide();
+            $("#joinParty").show();
+            $("#partyCode").text("");
+        } 
     });
 
     $("#createParty").click(async function(){
@@ -170,6 +219,16 @@ $(function(){
 
         if (passcode !== "" && passcode !== null) {
             payload = {"passcode": passcode};
+        } else if (passcode === null) {
+            return;
+        } 
+
+        let username = prompt("Enter a username:");
+        if (username === null || username === "") {
+            alert("You must have a username!");
+            return;
+        } else {
+            payload.username = username;
         }
 
         let resp = await fetch("/game/party/create", {
@@ -184,7 +243,11 @@ $(function(){
         if (data.room_code) {
             $("#joinParty").hide();
             $("#leaveParty").show();
+            alert("Party created! Room code: " + data.room_code);
         }
+
+        await reset();
+        await getPartyInfo();
 
         console.log(data);
     });

@@ -9,6 +9,9 @@ import dotenv
 import sys
 import uuid
 import string
+import datetime
+import time
+from threading import Thread
 
 dotenv.load_dotenv()
 
@@ -103,12 +106,47 @@ class CelebManager:
 
         return celeb
 
+class User:
+    def __init__(self, user_id: str | None = None, username: str | None = None):
+        self._id: str = user_id or str(uuid.uuid4())
+        self.username: str = username or self._id[:5]
+        self._last_interaction: datetime.datetime = datetime.datetime.now()
+        self._score: int = 0
+    
+    @property
+    def score(self):
+        self._last_interaction = datetime.datetime.now()
+        return self._score
+    
+    @score.setter
+    def score(self, value):
+        self._last_interaction = datetime.datetime.now()
+
+        if value < 0:
+            return
+        
+        self._score = value
+
+    @property
+    def key(self):
+        return self._id
+    
+    def get_interaction_difference(self) -> datetime.timedelta:
+        """
+        Get the difference between the user's last interaction and
+        the current time.
+        """
+        current_time = datetime.datetime.now()
+        difference = current_time - self._last_interaction
+
+        return difference
+
+
 class Party:
-    def __init__(self, passcode: str = "", initial_user: str | None = None):
+    def __init__(self, passcode: str = "", initial_user: User | None = None):
         self._code: str = self.generate_room_code()
         self._passcode: str = passcode
-        self._members: str = []
-        self._scores: int = []
+        self._members: list[User] = []
 
         # Generate a different room code until one that
         # is not being used is generated
@@ -130,7 +168,7 @@ class Party:
         """
         return "".join([string.ascii_letters[random.randint(0, 51)] for _ in range(5)])
 
-    def _get_user_index(self, user: str) -> int | bool:
+    def _get_user_index(self, user: User) -> int | bool:
         """
         Get the index of the user in the parallel arrays
         """
@@ -145,49 +183,83 @@ class Party:
         """
         party_sessions.pop(self._code, None)
 
-    def check_user(self, user: str) -> bool:
+    def check_user(self, user: User) -> bool:
         """
         Check if a user is a member of the party.
         """
         return user in self._members
 
-    def remove_user(self, user: str) -> None:
+    def remove_user(self, user: User | str) -> None:
         """
         Checks if a user is in a party and removes them if so.
         """
+        if isinstance(user, str):
+            user = self.get_user_by_key(user)
+
+        if not user:
+            return
+
         # Remove the user from the list of party members and their score from the list of scores
         if self.check_user(user):
             index = self._get_user_index(user)
             self._members.pop(index)
-            self._scores.pop(index)
 
         # If there are no more members in the party, remove it from the dict
         # of party sessions and delete it.
         if self._members == []:
             self.delete_party()
 
-    def add_user(self, user: str) -> None:
+    def add_user(self, user: User) -> None:
         """
         Add a user to the party 
         """
         self._members.append(user)
-        self._scores.append(0)
 
-    def get_user_score(self, user: str) -> int:
+    def get_user_score(self, user: User) -> int:
         """
         Get the current score of a user
         """
         index = self._get_user_index(user)
 
-        return self._scores[index]
+        return self._members[index].score
 
     def get_party_stats(self) -> dict:
-        return dict(zip(self._members, self._scores))
+        # Return a dictionary with a user's username and score
+        return {user.username: user.score for user in self._members}
 
-    def add_points(self, user: str, points: int) -> None:
-        index = self._get_user_index(user)
+    def add_points(self, user: User | str, points: int) -> None:
+        """
+        Get the amount of points a user has.
+        """
+        # In case a user key is passed, get the user object
+        if isinstance(user, str):
+            user = self.get_user_by_key(user)
 
-        self._scores[index] += points
+        if not user:
+            return
+
+        user.score += points
+
+    def get_user_by_key(self, user_key: str) -> User | None:
+        """
+        Get a user object from the party based on the 
+        user's key.
+        """
+        for user in self._members:
+            if user.key == user_key:
+                return user
+        
+        return None
+
+    def prune_inactive_members(self, seconds: int = 300):
+        """
+        Remove a member from a party if they have not
+        interacted within a certain amount of time. The default
+        is five minutes (300 seconds)
+        """
+        for member in self._members:
+            if member.get_interaction_difference().seconds > seconds:
+                self.remove_user(member)
 
     @property
     def code(self):
@@ -271,7 +343,7 @@ def game_submit():
         guess = float(req_data.get("guess"))
 
     # Get the symbolic amount a user guesses.
-    # This is thousand, million, billion, or trillion
+    # This is thousand, million, billion, or trillion, represented in zeros
     guess_amt = req_data.get("guess_amt")
 
     # Multiply the user's guess by the symbolic guess amount
@@ -349,8 +421,11 @@ def game_submit():
         (party_code := session.get("party_code", False))
           and (party := party_sessions.get(party_code, False))
           and (user_key := session.get("user_key", False))
+          and (isinstance(party, Party)) # Should usually be true, however is helpful for type checking
         ):
         party.add_points(user_key, points)
+        
+        party.prune_inactive_members() # Prune any inactive members of the party
     
 
     return response, 200
@@ -403,20 +478,23 @@ def create_party():
 
     # Get the user-provided passcode, random party code,
     # and user key.
-    passcode = data.get("passcode", "")
     user_key = session.get("user_key", str(uuid.uuid4()))
+    passcode = data.get("passcode", "")
+    username = data.get("username", user_key[:5])
 
-    party = Party(passcode, user_key)
+    user = User(user_key, username)
+    party = Party(passcode, user)
 
     # Remove the user from their old party if they 
     # were in one before creating this one
     if (old_code := session.get("party_code", False)) and (old_party := party_sessions.get(old_code)):
-        old_party.remove_user(user_key)
+        old_party.remove_user(user)
 
     # Record the user's key and party code in their
     # session
     session["user_key"] = user_key
     session["party_code"] = party.code
+    session["score"] = 0
 
     return {"room_code": party.code, "message": "Room successfully created!"}, 200
 
@@ -425,13 +503,18 @@ def join_party():
     """
     Join a party session.
     """
+    user_key = session.get("user_key", str(uuid.uuid4()))
+
+    # Get query arguments
     party_code = request.args.get("code", None)
     passcode = request.args.get("passcode", "")
+    username = request.args.get("username", user_key[:5])
 
     # Reject the user if the code is not provided
     if not party_code:
         return {"message": "No party code provided"}, 400
     
+    # Get the party from the dict of active parties
     party = party_sessions.get(party_code, False)
 
     # Reject the user if the party provided does not exist
@@ -443,16 +526,17 @@ def join_party():
     if (passcode != party.passcode):
         return {"message": "Incorrect passcode"}, 401
 
-    user_key = session.get("user_key", str(uuid.uuid4()))
-
     # Remove the user from a party if the user is found
     # to be in another party 
     if old_party := session.get("party_code", False):
         party_sessions[old_party].remove_user(user_key)
 
-    party.add_user(user_key)
+    # Create the user object and add it to the party
+    user = User(user_id = user_key, username=username)
+    party.add_user(user)
 
-    session["user_key"] = user_key
+    # Save the user's key and party information to the session
+    session["user_key"] = user.key
     session["party_code"] = party.code
 
     return {"message": "Successfully joined party"}, 200
@@ -463,11 +547,11 @@ def leave_party():
     Leave the currently active party.
     """
     party_code = session.get("party_code", None)
-    user = session.get("user_key", None)
+    user_key = session.get("user_key", None)
 
     if party_code:
         try:
-            party_sessions[party_code].remove_user(user)
+            party_sessions[party_code].remove_user(user_key)
         except KeyError:
             pass
     
@@ -481,21 +565,36 @@ def get_party_info():
     Get the users and scores in a user's party
     """
     party_code = session.get("party_code", None)
-    user = session.get("user_key", None)
+    user_key = session.get("user_key", None)
 
-    if not (party_code and user):
-        return 404
+    if not (party_code and user_key):
+        return {"message": "No available party code or user key "}, 404
     
     party = party_sessions.get(party_code, False)
 
     if not party:
-        return 404
+        return {"message": "No available party code or user key "}, 404
     
-    return {"stats": party.get_party_stats()}, 200
+    user = party.get_user_by_key(user_key)
+    
+    return {"stats": party.get_party_stats(), "code": party_code, "current_user": user.score}, 200
 
+def inactive_check():
+    """
+    A function, meant to be threaded, that runs a loop to check all parties 
+    and whether their members are inactive. Runs every five minutes.
+    """
+    while True:
+        for party in party_sessions.values():
+            party.prune_inactive_members()
+        print("Ran")
+
+        time.sleep(300) # 300 seconds for five minutes
 
 if __name__ == '__main__':
-    print("App started!")
+    print("App starting!")
+
+    Thread(target=inactive_check).start()
 
     gettrace = getattr(sys, 'gettrace', None)
 
