@@ -55,8 +55,8 @@ async function getPartyInfo() {
 
     let json = await resp.json();
 
+    $("#partyList").html("");
     for (let user in json.stats) {
-        $("#partyList").html("");
         $("#partyList").append(`<li>${user} | ${json.stats[user]}</li>`);
     }
 

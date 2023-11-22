@@ -136,10 +136,7 @@ class User:
         Get the difference between the user's last interaction and
         the current time.
         """
-        current_time = datetime.datetime.now()
-        difference = current_time - self._last_interaction
-
-        return difference
+        return datetime.datetime.now() - self._last_interaction
 
 
 class Party:
@@ -224,8 +221,16 @@ class Party:
         return self._members[index].score
 
     def get_party_stats(self) -> dict:
-        # Return a dictionary with a user's username and score
-        return {user.username: user.score for user in self._members}
+        """
+        Return a dictionary with a user's username and score
+        """
+        info = {user.username: user.score for user in self._members}
+
+        # Sort info by player with the highest score
+        info = {user.username: user.score for user in sorted(self._members, key=lambda item: item.score, reverse=True)}
+
+        return info
+        
 
     def add_points(self, user: User | str, points: int) -> None:
         """
@@ -251,7 +256,7 @@ class Party:
         
         return None
 
-    def prune_inactive_members(self, seconds: int = 300):
+    def prune_inactive_members(self, seconds: int = 30):
         """
         Remove a member from a party if they have not
         interacted within a certain amount of time. The default
@@ -528,8 +533,9 @@ def join_party():
 
     # Remove the user from a party if the user is found
     # to be in another party 
-    if old_party := session.get("party_code", False):
-        party_sessions[old_party].remove_user(user_key)
+    if ((old_party_code := session.get("party_code", None)) and
+        (old_party := party_sessions.get(old_party_code, None))):
+        old_party.remove_user(user_key)
 
     # Create the user object and add it to the party
     user = User(user_id = user_key, username=username)
@@ -579,22 +585,8 @@ def get_party_info():
     
     return {"stats": party.get_party_stats(), "code": party_code, "current_user": user.score}, 200
 
-def inactive_check():
-    """
-    A function, meant to be threaded, that runs a loop to check all parties 
-    and whether their members are inactive. Runs every five minutes.
-    """
-    while True:
-        for party in party_sessions.values():
-            party.prune_inactive_members()
-        print("Ran")
-
-        time.sleep(300) # 300 seconds for five minutes
-
 if __name__ == '__main__':
     print("App starting!")
-
-    Thread(target=inactive_check).start()
 
     gettrace = getattr(sys, 'gettrace', None)
 
