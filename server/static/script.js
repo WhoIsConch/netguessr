@@ -50,6 +50,9 @@ async function getPartyInfo() {
     let resp = await fetch("/game/party/info");
 
     if (resp.status !== 200) {
+        $(".partyInfo").hide();
+        $("#joinParty").show();
+        $("#leaveParty").hide();
         return false;
     }
 
@@ -63,6 +66,7 @@ async function getPartyInfo() {
     $("#score").text(`Score: ${json.current_user}`)
 
     $("#partyCode").text("Party Code: " + json.code)
+    $(".partyInfo").show();
     return true;
 }
 

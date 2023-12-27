@@ -12,7 +12,7 @@ body {
     margin-bottom: 20px;
 }
 
-.celeb {
+.celeb, .partyInfo {
     text-align: center;
     background-color: grey;
     border-radius: 5px;
@@ -45,6 +45,22 @@ body {
     float: left;
     text-align: center;
 }
+
+.partyInfo ul {
+    list-style: none;
+}
+
+/* .codeDiv {
+    width: 50%;
+    text-align: center;
+    float: left;
+}
+
+#partyList {
+    width: 50%;
+    text-align: center;
+    display: inline-block;
+} */
 
 .control {
     width: 50%;

@@ -1,17 +1,15 @@
-import flask
 import random
 import json
-import waitress
-from flask_cors import CORS
-from flask import request, render_template, session, redirect
-import os
-import dotenv
 import sys
 import uuid
 import string
 import datetime
-import time
-from threading import Thread
+import os
+import waitress
+from flask_cors import CORS
+import flask
+from flask import request, render_template, session, redirect
+import dotenv
 
 dotenv.load_dotenv()
 
@@ -26,6 +24,7 @@ guess_amount_key = {
 }
 
 party_sessions: dict[str, "Party"] = {}
+
 
 class CelebManager:
     """
@@ -105,6 +104,7 @@ class CelebManager:
             return None
 
         return celeb
+
 
 class User:
     def __init__(self, user_id: str | None = None, username: str | None = None):
@@ -231,7 +231,6 @@ class Party:
 
         return info
         
-
     def add_points(self, user: User | str, points: int) -> None:
         """
         Get the amount of points a user has.
@@ -256,7 +255,7 @@ class Party:
         
         return None
 
-    def prune_inactive_members(self, seconds: int = 30):
+    def prune_inactive_members(self, seconds: int = 300):
         """
         Remove a member from a party if they have not
         interacted within a certain amount of time. The default
