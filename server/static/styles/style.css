@@ -21,6 +21,11 @@ body {
     overflow: auto;
 }
 
+.celeb {
+    display: flex;
+    align-items: center;
+}
+
 .celeb h2 {
     text-align: center;
     font-size: 2em;
@@ -67,11 +72,6 @@ body {
     text-align: center;
     /* float: right; */
     display: inline-block;
-    /* Make the div fit its contents */
-    /* Make the div fit its contents */
-    /* margin: 0 auto; */
-    /* Make the div fit its contents */
-
 
 }
 

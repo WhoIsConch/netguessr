@@ -214,6 +214,7 @@ $(function(){
             $("#leaveParty").hide();
             $("#joinParty").show();
             $("#partyCode").text("");
+            $(".partyInfo").hide();
         } 
     });
 
